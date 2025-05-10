@@ -1,0 +1,13 @@
+package channel
+
+type ChannelInterface struct {
+	Name        string `json:"name" binding:"required"`
+	IsDirect    bool   `json:"is_direct" binding:"required"`
+	Description string `json:"description"`
+}
+
+type OptionalChannelInterface struct {
+	Name        *string `json:"name"`
+	IsDirect    *bool   `json:"is_direct"`
+	Description *string `json:"description"`
+}

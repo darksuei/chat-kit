@@ -7,7 +7,7 @@ import (
 type Channel struct {
 	gorm.Model
 
-	Name         string
+	Name         string `gorm:"unique;not null"`
 	IsDirect     bool
 	Description         *string
 
