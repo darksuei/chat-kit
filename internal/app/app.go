@@ -7,47 +7,50 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/darksuei/chat-kit/config"
-	"github.com/darksuei/chat-kit/internal/api"
 	"github.com/darksuei/chat-kit/internal/database"
-
 	"github.com/joho/godotenv"
 )
 
 func Run() {
-	godotenv.Load()
+	// Load environment variables
+	_ = godotenv.Load()
 
 	port, err := config.ReadEnv("PORT")
-
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error reading PORT from environment:", err)
 	}
 
-	http.HandleFunc("/health", api.Health)
+	database.Connect()
 
-	server := &http.Server{Addr: ":" + port}
+	router := Router()
+
+	server := &http.Server{
+		Addr:    ":" + port,
+		Handler: router,
+	}
 
 	go func() {
-		log.Printf("Application is running on port: %s...", port)
-
-		database.Connect()
-		
+		log.Printf("Application is running on port: %s", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed: %s", err)
+			log.Fatalf("Application startup failed: %s", err)
 		}
 	}()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop // Wait for the signal to terminate
+	// Handle graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-	log.Println("Shutting down application...")
+	log.Println("Shutting down application..")
 
-	// Gracefully shutdown HTTP server
-	if err := server.Shutdown(context.Background()); err != nil {
-		log.Fatalf("Application shutdown failed: %s...", err)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Graceful shutdown failed: %s", err)
 	}
 
-	log.Println("Application shutdown...")
+	log.Println("Application shutdown successfully..")
 }
