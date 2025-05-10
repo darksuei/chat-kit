@@ -9,7 +9,7 @@ type Channel struct {
 
 	Name         string
 	IsDirect     bool
-	Desc         *string
+	Description         *string
 
 	Participants []ChannelParticipant `gorm:"many2many:channel_participants;"`
 	ImageID      *uint
