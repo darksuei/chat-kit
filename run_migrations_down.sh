@@ -4,4 +4,4 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-migrate -path internal/migrations -database $1 down
+migrate -path migrations -database $1 down

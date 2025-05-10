@@ -4,4 +4,4 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-migrate create -ext sql -dir internal/migrations -seq $1
+migrate create -ext sql -dir migrations -seq $1
