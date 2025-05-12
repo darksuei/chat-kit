@@ -30,6 +30,51 @@ func CreateChannel(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "Channel created successfully."})
 }
 
+func UpdateChannel(c *gin.Context) {
+	payload, err := helpers.ValidateRequest[channel.OptionalChannelInterface](c)
+	
+	if err != nil {
+		c.JSON(422, gin.H{"error": "Invalid request body: " + err.Error()})
+		return
+	}
+
+	id := c.Param("id")
+
+	idInt64, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	channel, err := repository.FindById(database.DB, idInt64)
+
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Failed to fetch channel: " + err.Error()})
+		return
+	}
+
+	if payload.Name != nil {
+		channel.Name = *payload.Name
+	}
+
+	if payload.IsDirect != nil {
+		channel.IsDirect = *payload.IsDirect
+	}
+
+	if payload.Description != nil {
+		channel.Description = payload.Description
+	}
+
+	err = repository.Update(database.DB.Model(&channel), channel)
+
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Failed to update channel: " + err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Channel updated successfully."})
+}
+
 func GetChannels(c *gin.Context) {
 	where := channel.OptionalChannelInterface{}
 

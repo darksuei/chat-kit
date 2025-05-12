@@ -11,11 +11,14 @@ type Repository interface {
 	FindOne(db *gorm.DB, where *OptionalChannelInterface) (*Channel, error)
 	Find(db *gorm.DB, where *OptionalChannelInterface) (*[]Channel, error)
 	Create(db *gorm.DB, payload *ChannelInterface) error
+	Update(db *gorm.DB, channel *Channel) error
+
+	CreateParticipant(userId string, channel *Channel) error
 }
 
-type repository struct{}
+type repositoryDefinition struct{}
 
-func (r *repository) FindById(db *gorm.DB, id int64) (*Channel, error) {
+func (r *repositoryDefinition) FindById(db *gorm.DB, id int64) (*Channel, error) {
 	var channel Channel
 
 	if err := db.First(&channel, id).Error; err != nil {
@@ -28,7 +31,7 @@ func (r *repository) FindById(db *gorm.DB, id int64) (*Channel, error) {
 	return &channel, nil
 }
 
-func (r *repository) FindOne(db *gorm.DB, where *OptionalChannelInterface) (*Channel, error) {
+func (r *repositoryDefinition) FindOne(db *gorm.DB, where *OptionalChannelInterface) (*Channel, error) {
 	query := map[string]interface{}{}
 
 	if where.Name != nil {
@@ -53,7 +56,7 @@ func (r *repository) FindOne(db *gorm.DB, where *OptionalChannelInterface) (*Cha
 	return &channel, nil	
 }
 
-func (r *repository) Find(db *gorm.DB, where *OptionalChannelInterface) (*[]Channel, error) {
+func (r *repositoryDefinition) Find(db *gorm.DB, where *OptionalChannelInterface) (*[]Channel, error) {
 	query := map[string]interface{}{}
 
 	if where.Name != nil {
@@ -75,7 +78,7 @@ func (r *repository) Find(db *gorm.DB, where *OptionalChannelInterface) (*[]Chan
 	return &channels, nil	
 }
 
-func (r *repository) Create(db *gorm.DB, payload *ChannelInterface) error {
+func (r *repositoryDefinition) Create(db *gorm.DB, payload *ChannelInterface) error {
 	channel := Channel{Name: payload.Name, IsDirect: payload.IsDirect, Description: &payload.Description}
 
 	result := db.Create(&channel).Error
@@ -87,6 +90,20 @@ func (r *repository) Create(db *gorm.DB, payload *ChannelInterface) error {
 	return nil
 }
 
+func (r *repositoryDefinition) Update(db *gorm.DB, channel *Channel) error {
+	result := db.Updates(channel).Error
+
+	if result != nil {
+		return errors.New("failed to update channel: " + result.Error())
+	}
+
+	return nil
+}
+
+func (r *repositoryDefinition) CreateParticipant(userId string, channel *Channel, participant ) error {
+	result := db.Create()
+}
+
 func NewRepository() Repository {
-	return &repository{}
+	return &repositoryDefinition{}
 }

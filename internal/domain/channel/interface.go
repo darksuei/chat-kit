@@ -11,3 +11,9 @@ type OptionalChannelInterface struct {
 	IsDirect    *bool   `json:"is_direct"`
 	Description *string `json:"description"`
 }
+
+type ChannelParticipantInterface struct {
+	UserID uint
+	Role ChannelParticipantRole
+	
+}

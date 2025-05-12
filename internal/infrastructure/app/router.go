@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	handlers "github.com/darksuei/chat-kit/internal/infrastructure/app/handlers"
+	middlewares "github.com/darksuei/chat-kit/internal/infrastructure/app/middlewares"
 )
 
 func Router() *gin.Engine {
@@ -14,9 +15,10 @@ func Router() *gin.Engine {
 	/*
 	* Channels
 	*/
-	router.GET("/channel", handlers.GetChannels)
-	router.GET("/channel/:id", handlers.GetChannelById)
-	router.POST("/channel", handlers.CreateChannel)
+	router.GET("/channel", middlewares.AuthMiddleware(), handlers.GetChannels)
+	router.GET("/channel/:id", middlewares.AuthMiddleware(), handlers.GetChannelById)
+	router.PUT("/channel", middlewares.AuthMiddleware(), handlers.UpdateChannel)
+	router.POST("/channel", middlewares.AuthMiddleware(), handlers.CreateChannel)
 
 	return router
 }

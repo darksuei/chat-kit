@@ -19,5 +19,6 @@ type ChannelParticipant struct {
 	gorm.Model
 
 	UserID   uint
+	Role  ChannelParticipantRole `gorm:"type:enum('creator','admin','participant');not null"`
 	Channels []Channel `gorm:"many2many:channel_participants;"`
 }
