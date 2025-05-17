@@ -2,7 +2,7 @@ package channel
 
 type ChannelInterface struct {
 	Name        string `json:"name" binding:"required"`
-	IsDirect    bool   `json:"is_direct" binding:"required"`
+	IsDirect    *bool   `json:"is_direct" binding:"required"`
 	Description string `json:"description"`
 }
 
@@ -13,7 +13,7 @@ type OptionalChannelInterface struct {
 }
 
 type ChannelParticipantInterface struct {
-	UserID uint
-	Role ChannelParticipantRole
-	
+	UserID string `json:"user_id" binding:"required"`
+	// Role ChannelParticipantRole `json:"role" binding:"required"`
+	ChannelID uint `json:"channel_id" binding:"required"`
 }

@@ -1,16 +1,16 @@
 package handlers
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	channel "github.com/darksuei/chat-kit/internal/domain/channel"
 	helpers "github.com/darksuei/chat-kit/internal/helpers"
-	database "github.com/darksuei/chat-kit/internal/infrastructure/database"
 )
 
-var repository channel.Repository = channel.NewRepository()
+var service channel.Service = channel.NewService()
 
 func CreateChannel(c *gin.Context) {
 	payload, err := helpers.ValidateRequest[channel.ChannelInterface](c)
@@ -20,10 +20,30 @@ func CreateChannel(c *gin.Context) {
 		return
 	}
 
-	err = repository.Create(database.DB, payload)
+	log.Println("Creating channel..")
+
+	newChannel, err := service.CreateChannel(payload)
+
+	if err != nil{
+		c.JSON(400, gin.H{"error": "Failed to create channel: " + err.Error()})
+		return
+	}
+
+	log.Println("Channel: ", newChannel)
+
+	log.Println("Creating channel participant..")
+
+	userId, err := helpers.GetUserIdFromContext(c)
 
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Failed to create channel: " + err.Error()})
+		c.JSON(400, gin.H{"error": "Invalid user: " + err.Error()})
+		return
+	}
+
+	err = service.CreateChannelParticipant(*userId, newChannel.ID, channel.Creator)
+
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Failed to create channel participant: " + err.Error()})
 		return
 	}
 
@@ -46,26 +66,7 @@ func UpdateChannel(c *gin.Context) {
 		return
 	}
 
-	channel, err := repository.FindById(database.DB, idInt64)
-
-	if err != nil {
-		c.JSON(400, gin.H{"error": "Failed to fetch channel: " + err.Error()})
-		return
-	}
-
-	if payload.Name != nil {
-		channel.Name = *payload.Name
-	}
-
-	if payload.IsDirect != nil {
-		channel.IsDirect = *payload.IsDirect
-	}
-
-	if payload.Description != nil {
-		channel.Description = payload.Description
-	}
-
-	err = repository.Update(database.DB.Model(&channel), channel)
+	err = service.UpdateChannel(idInt64, payload)
 
 	if err != nil {
 		c.JSON(400, gin.H{"error": "Failed to update channel: " + err.Error()})
@@ -78,7 +79,7 @@ func UpdateChannel(c *gin.Context) {
 func GetChannels(c *gin.Context) {
 	where := channel.OptionalChannelInterface{}
 
-	channels, err := repository.Find(database.DB, &where)
+	channels, err := service.GetChannels(&where)
 
 	if err != nil {
 		c.JSON(400, gin.H{"error": "Failed to fetch channels: " + err.Error()})
@@ -97,7 +98,7 @@ func GetChannelById(c *gin.Context) {
 		return
 	}
 
-	channel, err := repository.FindById(database.DB, idInt64)
+	channel, err := service.GetChannelById(idInt64)
 
 	if err != nil {
 		c.JSON(400, gin.H{"error": "Failed to fetch channel: " + err.Error()})
@@ -105,4 +106,124 @@ func GetChannelById(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"channel": channel})
+}
+
+func CreateChannelParticipant(c *gin.Context) {
+	payload, err := helpers.ValidateRequest[channel.ChannelParticipantInterface](c)
+
+	if err != nil {
+		c.JSON(422, gin.H{"error": "Invalid request body: " + err.Error()})
+		return
+	}
+
+	log.Println("Checking channel..")
+
+	existingChannel, err := service.GetChannelById(int64(payload.ChannelID))
+
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Channel does not exist: " + err.Error()})
+		return
+	}
+
+	log.Println("Checking duplicate participant..")
+
+	_, err = service.FindChannelParticipant(payload.UserID, existingChannel.ID)
+
+	if err == nil {
+		c.JSON(429, gin.H{"error": "Participant already exists."})
+		return
+	}
+
+	log.Println("Checking admin participant..")
+
+	userId, err := helpers.GetUserIdFromContext(c)
+
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid user: " + err.Error()})
+		return
+	}
+
+	log.Print(*userId, existingChannel.ID)
+
+	admin, err := service.FindChannelParticipant(*userId, existingChannel.ID)
+	
+	if err != nil || admin.Role != channel.Creator && admin.Role != channel.Admin {
+		c.JSON(400, gin.H{"error": "Insufficient permissions to perform this action: " + err.Error()})
+		return
+	}
+
+	log.Println("Adding channel participant..")
+
+	err = service.CreateChannelParticipant(payload.UserID, payload.ChannelID, channel.Participant)
+
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Failed to add channel participant: " + err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Channel participant added successfully."})
+}
+
+func RemoveChannelParticipant(c *gin.Context) {
+	payload, err := helpers.ValidateRequest[channel.ChannelParticipantInterface](c)
+
+	if err != nil {
+		c.JSON(422, gin.H{"error": "Invalid request body: " + err.Error()})
+		return
+	}
+
+	log.Println("Checking channel..")
+
+	existingChannel, err := service.GetChannelById(int64(payload.ChannelID))
+
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Channel does not exist: " + err.Error()})
+		return
+	}
+
+	log.Println("Checking admin participant..")
+
+	userId, err := helpers.GetUserIdFromContext(c)
+
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid user: " + err.Error()})
+		return
+	}
+
+	log.Print(*userId, existingChannel.ID)
+
+	admin, err := service.FindChannelParticipant(*userId, existingChannel.ID)
+	
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Insufficient permissions to perform this action: " + err.Error()})
+		return
+	}
+
+	existingParticipant, err := service.FindChannelParticipant(*userId, existingChannel.ID)
+
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid participant: " + err.Error()})
+		return
+	}
+
+	if existingParticipant.Role == channel.Creator {
+		c.JSON(400, gin.H{"error": "You cannot remove the creator of this channel."})
+		return
+	}
+	
+	if admin.Role == channel.Participant || admin.Role == channel.Admin && existingParticipant.Role == channel.Admin {
+		c.JSON(400, gin.H{"error": "Insufficient permissions to perform this action."})
+		return
+	}
+
+	log.Println("Removing channel participant..")
+
+	err = service.DeleteChannelParticipant(payload.UserID, payload.ChannelID)
+
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Failed to remove channel participant: " + err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Channel participant removed successfully."})
 }

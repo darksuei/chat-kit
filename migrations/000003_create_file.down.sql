@@ -1,2 +1,0 @@
-DROP TABLE IF EXISTS file_versions;
-DROP TABLE IF EXISTS files;

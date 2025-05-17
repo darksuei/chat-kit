@@ -10,10 +10,12 @@ type Repository interface {
 	FindById(db *gorm.DB, id int64) (*Channel, error)
 	FindOne(db *gorm.DB, where *OptionalChannelInterface) (*Channel, error)
 	Find(db *gorm.DB, where *OptionalChannelInterface) (*[]Channel, error)
-	Create(db *gorm.DB, payload *ChannelInterface) error
+	Create(db *gorm.DB, payload *ChannelInterface) (*Channel, error)
 	Update(db *gorm.DB, channel *Channel) error
 
-	CreateParticipant(userId string, channel *Channel) error
+	CreateParticipant(db *gorm.DB, userId string, channelId uint, role ChannelParticipantRole) error
+	DeleteParticipant(db *gorm.DB, userId string, channelId uint) error
+	FindParticipant(db *gorm.DB, userId string, channelId uint) (*ChannelParticipant, error)
 }
 
 type repositoryDefinition struct{}
@@ -71,37 +73,83 @@ func (r *repositoryDefinition) Find(db *gorm.DB, where *OptionalChannelInterface
 	
 	var channels []Channel
 
-	if err := db.Where(query).Find(&channels).Error; err != nil {
+	if err := db.Preload("Participants").Where(query).Find(&channels).Error; err != nil {
 		return nil, err
 	}
 
 	return &channels, nil	
 }
 
-func (r *repositoryDefinition) Create(db *gorm.DB, payload *ChannelInterface) error {
-	channel := Channel{Name: payload.Name, IsDirect: payload.IsDirect, Description: &payload.Description}
+func (r *repositoryDefinition) Create(db *gorm.DB, payload *ChannelInterface) (*Channel, error) {
+	channel := Channel{Name: payload.Name, IsDirect: *payload.IsDirect, Description: &payload.Description}
 
-	result := db.Create(&channel).Error
+	err := db.Create(&channel).Error
 
-	if result != nil {
-		return errors.New("failed to create channel: " + result.Error())
+	if err != nil {
+		return nil, errors.New("failed to create channel: " + err.Error())
 	}
 
-	return nil
+	return &channel, nil
 }
 
 func (r *repositoryDefinition) Update(db *gorm.DB, channel *Channel) error {
-	result := db.Updates(channel).Error
+	err := db.Updates(channel).Error
 
-	if result != nil {
-		return errors.New("failed to update channel: " + result.Error())
+	if err != nil {
+		return errors.New("failed to update channel: " + err.Error())
 	}
 
 	return nil
 }
 
-func (r *repositoryDefinition) CreateParticipant(userId string, channel *Channel, participant ) error {
-	result := db.Create()
+func (r *repositoryDefinition) CreateParticipant(db *gorm.DB, userId string, channelId uint, role ChannelParticipantRole) error {
+	participant := ChannelParticipant{
+		UserID:  userId,
+		Role:    role,
+		ChannelID: channelId,
+	}
+
+	if err := db.Create(&participant).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *repositoryDefinition) DeleteParticipant(db *gorm.DB, userId string, channelId uint) error {
+	var participant ChannelParticipant
+
+	// First, find the participant
+	err := db.Where("user_id = ? AND channel_id = ?", userId, channelId).
+		First(&participant).Error
+
+	if err != nil {
+		return err
+	}
+
+	// Then delete the participant
+	if err := db.Delete(&participant).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *repositoryDefinition) FindParticipant(db *gorm.DB, userId string, channelId uint) (*ChannelParticipant, error) {
+	var participant ChannelParticipant
+
+	err := db.
+		Where("user_id = ? AND channel_id = ?", userId, channelId).
+		First(&participant).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("participant not found in the specified channel")
+		}
+		return nil, err
+	}
+
+	return &participant, nil
 }
 
 func NewRepository() Repository {

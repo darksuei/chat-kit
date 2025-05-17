@@ -5,18 +5,67 @@ import (
 )
 
 type Service interface {
-	CreateChannel(payload *ChannelInterface) error
-}
+	CreateChannel(payload *ChannelInterface) (*Channel, error)
+	UpdateChannel(id int64, payload *OptionalChannelInterface) error
+	GetChannels(where *OptionalChannelInterface) (*[]Channel, error)
+	GetChannelById(id int64) (*Channel, error)
 
+	CreateChannelParticipant(userId string, channelId uint, role ChannelParticipantRole) error
+	DeleteChannelParticipant(userId string, channelId uint) error
+	FindChannelParticipant(userId string, channelId uint) (*ChannelParticipant, error)
+}
 type serviceDefinition struct{}
 
 var repo Repository = NewRepository()
 
-func CreateChannel(payload *ChannelInterface) error {
+func (r *serviceDefinition) CreateChannel(payload *ChannelInterface) (*Channel, error) {
 	return repo.Create(database.DB, payload)
 }
 
-func CreateChannelParticipant() error {
-	// given the created channel and the userId, add the participant as the creator
-	
+func (r *serviceDefinition) UpdateChannel(id int64, payload *OptionalChannelInterface) error {
+	channel, err := repo.FindById(database.DB, id)
+
+	if err != nil {
+		return err
+	}
+
+	if payload.Name != nil {
+		channel.Name = *payload.Name
+	}
+
+	if payload.IsDirect != nil {
+		channel.IsDirect = *payload.IsDirect
+	}
+
+	if payload.Description != nil {
+		channel.Description = payload.Description
+	}
+
+	err = repo.Update(database.DB.Model(&channel), channel)
+
+	return err
+}
+
+func (r *serviceDefinition) GetChannels(where *OptionalChannelInterface) (*[]Channel, error) {
+	return repo.Find(database.DB, where)
+}
+
+func (r *serviceDefinition) GetChannelById(id int64) (*Channel, error) {
+	return repo.FindById(database.DB, id)
+}
+
+func (r *serviceDefinition) CreateChannelParticipant(userId string, channelId uint, role ChannelParticipantRole) error {
+	return repo.CreateParticipant(database.DB, userId, channelId, role)
+}
+
+func (r *serviceDefinition) DeleteChannelParticipant(userId string, channelId uint) error {
+	return repo.DeleteParticipant(database.DB, userId, channelId)
+}
+
+func (r *serviceDefinition) FindChannelParticipant(userId string, channelId uint) (*ChannelParticipant, error) {
+	return repo.FindParticipant(database.DB, userId, channelId)
+}
+
+func NewService() Service {
+	return &serviceDefinition{}
 }

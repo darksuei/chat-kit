@@ -11,14 +11,15 @@ type Channel struct {
 	IsDirect     bool
 	Description         *string
 
-	Participants []ChannelParticipant `gorm:"many2many:channel_participants;"`
+	Participants []ChannelParticipant
 	ImageID      *uint
 }
 
 type ChannelParticipant struct {
 	gorm.Model
 
-	UserID   uint
+	UserID   string
 	Role  ChannelParticipantRole `gorm:"type:enum('creator','admin','participant');not null"`
-	Channels []Channel `gorm:"many2many:channel_participants;"`
+
+	ChannelID uint
 }
