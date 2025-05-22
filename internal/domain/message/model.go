@@ -7,24 +7,26 @@ import (
 )
 
 type Message struct {
-    gorm.Model
+	gorm.Model
 
-    ChannelID     uint
-    Channel       channel.Channel
+	ChannelID     uint
+	Channel       channel.Channel `gorm:"constraint:OnDelete:CASCADE;"`
 
-    ParticipantID uint
-    Participant   channel.ChannelParticipant
+	ParticipantID uint
+	Participant   channel.ChannelParticipant `gorm:"constraint:OnDelete:SET NULL;"`
 
-    Content       string
+	Content       string `gorm:"type:text;not null"`
 
-    ReadBy        []channel.ChannelParticipant `gorm:"many2many:message_read_by;"`
-    Mentions      []channel.ChannelParticipant `gorm:"many2many:message_mentions;"`
-    Reactions     []MessageReaction
+	ReadBy    []channel.ChannelParticipant `gorm:"many2many:message_read_by;"`
+	Mentions  []channel.ChannelParticipant `gorm:"many2many:message_mentions;"`
 
-    IsChild       bool `gorm:"default:false"`
-    ParentID      *uint
-    Parent        *Message
+	Reactions []MessageReaction `gorm:"constraint:OnDelete:CASCADE;"`
+
+	IsChild  bool   `gorm:"default:false"`
+	ParentID *uint
+	Parent   *Message `gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE;"`
 }
+
 
 type MessageReaction struct {
 	gorm.Model

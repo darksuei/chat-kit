@@ -26,5 +26,15 @@ func Router() *gin.Engine {
 	router.POST("/channel/participant", middlewares.AuthMiddleware(), handlers.CreateChannelParticipant)
 	router.DELETE("/channel/participant", middlewares.AuthMiddleware(), handlers.RemoveChannelParticipant)
 
+	/*
+	* Messages
+	*/
+	router.GET("/channel/:id/messages", middlewares.AuthMiddleware(), handlers.GetMessages)
+
+	/*
+	* Message Websocket
+	*/
+	router.GET("/channel/ws/:id", handlers.HandleMessageWebsocket)
+
 	return router
 }

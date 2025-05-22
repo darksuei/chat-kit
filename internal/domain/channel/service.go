@@ -13,16 +13,17 @@ type Service interface {
 	CreateChannelParticipant(userId string, channelId uint, role ChannelParticipantRole) error
 	DeleteChannelParticipant(userId string, channelId uint) error
 	FindChannelParticipant(userId string, channelId uint) (*ChannelParticipant, error)
+	GetListOfParticipants(userIdList *[]string, channelId uint) (*[]ChannelParticipant, error)
 }
 type serviceDefinition struct{}
 
 var repo Repository = NewRepository()
 
-func (r *serviceDefinition) CreateChannel(payload *ChannelInterface) (*Channel, error) {
+func (s *serviceDefinition) CreateChannel(payload *ChannelInterface) (*Channel, error) {
 	return repo.Create(database.DB, payload)
 }
 
-func (r *serviceDefinition) UpdateChannel(id int64, payload *OptionalChannelInterface) error {
+func (s *serviceDefinition) UpdateChannel(id int64, payload *OptionalChannelInterface) error {
 	channel, err := repo.FindById(database.DB, id)
 
 	if err != nil {
@@ -46,24 +47,28 @@ func (r *serviceDefinition) UpdateChannel(id int64, payload *OptionalChannelInte
 	return err
 }
 
-func (r *serviceDefinition) GetChannels(where *OptionalChannelInterface) (*[]Channel, error) {
+func (s *serviceDefinition) GetChannels(where *OptionalChannelInterface) (*[]Channel, error) {
 	return repo.Find(database.DB, where)
 }
 
-func (r *serviceDefinition) GetChannelById(id int64) (*Channel, error) {
+func (s *serviceDefinition) GetChannelById(id int64) (*Channel, error) {
 	return repo.FindById(database.DB, id)
 }
 
-func (r *serviceDefinition) CreateChannelParticipant(userId string, channelId uint, role ChannelParticipantRole) error {
+func (s *serviceDefinition) CreateChannelParticipant(userId string, channelId uint, role ChannelParticipantRole) error {
 	return repo.CreateParticipant(database.DB, userId, channelId, role)
 }
 
-func (r *serviceDefinition) DeleteChannelParticipant(userId string, channelId uint) error {
+func (s *serviceDefinition) DeleteChannelParticipant(userId string, channelId uint) error {
 	return repo.DeleteParticipant(database.DB, userId, channelId)
 }
 
-func (r *serviceDefinition) FindChannelParticipant(userId string, channelId uint) (*ChannelParticipant, error) {
+func (s *serviceDefinition) FindChannelParticipant(userId string, channelId uint) (*ChannelParticipant, error) {
 	return repo.FindParticipant(database.DB, userId, channelId)
+}
+
+func (s *serviceDefinition) GetListOfParticipants(userIdList *[]string, channelId uint) (*[]ChannelParticipant, error) {
+	return repo.GetListOfParticipants(database.DB, userIdList, channelId)
 }
 
 func NewService() Service {

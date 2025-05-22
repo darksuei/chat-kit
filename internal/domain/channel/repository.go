@@ -16,6 +16,7 @@ type Repository interface {
 	CreateParticipant(db *gorm.DB, userId string, channelId uint, role ChannelParticipantRole) error
 	DeleteParticipant(db *gorm.DB, userId string, channelId uint) error
 	FindParticipant(db *gorm.DB, userId string, channelId uint) (*ChannelParticipant, error)
+	GetListOfParticipants(db *gorm.DB, userIdList *[]string, channelId uint) (*[]ChannelParticipant, error)
 }
 
 type repositoryDefinition struct{}
@@ -23,7 +24,7 @@ type repositoryDefinition struct{}
 func (r *repositoryDefinition) FindById(db *gorm.DB, id int64) (*Channel, error) {
 	var channel Channel
 
-	if err := db.First(&channel, id).Error; err != nil {
+	if err := db.Unscoped().First(&channel, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, errors.New("Channel not found")
 		}
@@ -48,7 +49,7 @@ func (r *repositoryDefinition) FindOne(db *gorm.DB, where *OptionalChannelInterf
 	
 	var channel Channel
 
-	if err := db.Where(query).First(&channel).Error; err != nil {
+	if err := db.Unscoped().Where(query).First(&channel).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, errors.New("Channel not found")
 		}
@@ -73,7 +74,7 @@ func (r *repositoryDefinition) Find(db *gorm.DB, where *OptionalChannelInterface
 	
 	var channels []Channel
 
-	if err := db.Preload("Participants").Where(query).Find(&channels).Error; err != nil {
+	if err := db.Unscoped().Preload("Participants").Where(query).Find(&channels).Error; err != nil {
 		return nil, err
 	}
 
@@ -139,6 +140,7 @@ func (r *repositoryDefinition) FindParticipant(db *gorm.DB, userId string, chann
 	var participant ChannelParticipant
 
 	err := db.
+		Unscoped().
 		Where("user_id = ? AND channel_id = ?", userId, channelId).
 		First(&participant).Error
 
@@ -150,6 +152,21 @@ func (r *repositoryDefinition) FindParticipant(db *gorm.DB, userId string, chann
 	}
 
 	return &participant, nil
+}
+
+func (r * repositoryDefinition) GetListOfParticipants(db *gorm.DB, userIdList *[]string, channelId uint) (*[]ChannelParticipant, error) {
+	var participants []ChannelParticipant
+
+	if userIdList != nil && len(*userIdList) > 0  {
+		err := db.Where("user_id IN ? AND channel_id = ?", *userIdList, channelId).
+			Find(&participants).Error
+
+		if err != nil {
+			return nil, errors.New("error fetching a mentioned participant")
+		}
+	}
+
+	return &participants, nil
 }
 
 func NewRepository() Repository {
